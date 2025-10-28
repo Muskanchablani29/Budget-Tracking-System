@@ -142,7 +142,7 @@ function App() {
           'Content-Type': 'application/json',
         }
       });
-      if (response.ok) {
+      if (response.ok) { 
         const data = await response.json();
         setExpenses(Array.isArray(data) ? data : []);
       } else if (response.status === 403) {
