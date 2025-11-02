@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import './reports.css';
+import './modern-categories.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -262,7 +263,7 @@ function App() {
         setNewMoney({ amount: '', description: 'Added money' });
         setShowAddMoney(false);
         await fetchAll();
-        alert(`Funds added successfully! New balance: $${data.new_balance?.toFixed(2)}`);
+        alert(`Funds added successfully! New balance: ₹${data.new_balance?.toFixed(2)}`);
       } else {
         alert('Failed to add funds. Please try again.');
       }
@@ -375,22 +376,22 @@ function App() {
         let csvContent = `Monthly Report - ${data.month}\n`;
         csvContent += `Period: ${data.period}\n\n`;
         csvContent += `SUMMARY\n`;
-        csvContent += `Total Income,$${data.summary.total_income.toFixed(2)}\n`;
-        csvContent += `Total Expenses,$${data.summary.total_expenses.toFixed(2)}\n`;
-        csvContent += `Net Savings,$${data.summary.net_savings.toFixed(2)}\n`;
-        csvContent += `Budget,$${data.summary.budget.toFixed(2)}\n`;
-        csvContent += `Budget Remaining,$${data.summary.budget_remaining.toFixed(2)}\n\n`;
+        csvContent += `Total Income,₹${data.summary.total_income.toFixed(2)}\n`;
+        csvContent += `Total Expenses,₹${data.summary.total_expenses.toFixed(2)}\n`;
+        csvContent += `Net Savings,₹${data.summary.net_savings.toFixed(2)}\n`;
+        csvContent += `Budget,₹${data.summary.budget.toFixed(2)}\n`;
+        csvContent += `Budget Remaining,₹${data.summary.budget_remaining.toFixed(2)}\n\n`;
         
         csvContent += `ALL TRANSACTIONS\n`;
         csvContent += `Date,Type,Amount,Description\n`;
         data.transactions.forEach(trans => {
-          csvContent += `${trans.date},${trans.type},$${trans.amount.toFixed(2)},"${trans.description}"\n`;
+          csvContent += `${trans.date},${trans.type},₹${trans.amount.toFixed(2)},"${trans.description}"\n`;
         });
         
         csvContent += `\nDETAILED EXPENSES\n`;
         csvContent += `Date,Amount,Description,Category\n`;
         data.expenses.forEach(exp => {
-          csvContent += `${exp.date},$${exp.amount.toFixed(2)},"${exp.description}",${exp.category}\n`;
+          csvContent += `${exp.date},₹${exp.amount.toFixed(2)},"${exp.description}",${exp.category}\n`;
         });
         
         // Download CSV file
@@ -517,7 +518,7 @@ function App() {
               <div className="hero-card">
                 <div className="hero-content">
                   <div className="hero-title">Total Balance</div>
-                  <div className="hero-balance">${dashboard.wallet_balance?.toFixed(2) || '0.00'}</div>
+                  <div className="hero-balance">₹{dashboard.wallet_balance?.toFixed(2) || '0.00'}</div>
                   <div className="hero-subtitle">Available for spending</div>
                   <div className="hero-actions">
                     <button className="hero-btn primary" onClick={() => setShowAddMoney(true)}>
@@ -537,7 +538,7 @@ function App() {
                     <div className="stat-title">Monthly Budget</div>
                     <div className="stat-icon">🎯</div>
                   </div>
-                  <div className="stat-value">${dashboard.budget?.toFixed(2) || '0.00'}</div>
+                  <div className="stat-value">₹{dashboard.budget?.toFixed(2) || '0.00'}</div>
                   <div className="stat-change positive">+12% from last month</div>
                 </div>
                 
@@ -546,7 +547,7 @@ function App() {
                     <div className="stat-title">Total Spent</div>
                     <div className="stat-icon">💸</div>
                   </div>
-                  <div className="stat-value">${dashboard.spent?.toFixed(2) || '0.00'}</div>
+                  <div className="stat-value">₹{dashboard.spent?.toFixed(2) || '0.00'}</div>
                   <div className="stat-change negative">+8% from last month</div>
                 </div>
                 
@@ -555,7 +556,7 @@ function App() {
                     <div className="stat-title">Remaining</div>
                     <div className="stat-icon">💰</div>
                   </div>
-                  <div className="stat-value">${dashboard.remaining_budget?.toFixed(2) || '0.00'}</div>
+                  <div className="stat-value">₹{dashboard.remaining_budget?.toFixed(2) || '0.00'}</div>
                   <div className="stat-change positive">{dashboard.budget > 0 ? 'Looking good!' : 'Set a budget'}</div>
                 </div>
                 
@@ -564,13 +565,14 @@ function App() {
                     <div className="stat-title">This Week</div>
                     <div className="stat-icon">📅</div>
                   </div>
-                  <div className="stat-value">${dashboard.week_spent?.toFixed(2) || '0.00'}</div>
+                  <div className="stat-value">₹{dashboard.week_spent?.toFixed(2) || '0.00'}</div>
                   <div className="stat-change positive">-5% from last week</div>
                 </div>
               </div>
             </div>
 
             <div className="dashboard-right">
+
               {/* Budget Progress */}
               <div className="progress-card">
                 <div className="progress-header">
@@ -584,43 +586,11 @@ function App() {
                   ></div>
                 </div>
                 <div className="progress-details">
-                  <span>Spent: ${dashboard.spent?.toFixed(2) || '0.00'}</span>
-                  <span>Budget: {dashboard.budget > 0 ? `$${dashboard.budget?.toFixed(2)}` : 'Not set'}</span>
+                  <span>Spent: ₹{dashboard.spent?.toFixed(2) || '0.00'}</span>
+                  <span>Budget: {dashboard.budget > 0 ? `₹${dashboard.budget?.toFixed(2)}` : 'Not set'}</span>
                 </div>
               </div>
 
-              {/* Top Categories */}
-              {dashboard.category_breakdown && dashboard.category_breakdown.length > 0 && (
-                <div className="categories-card">
-                  <div className="categories-header">
-                    <div className="categories-title">Top Categories</div>
-                    <span className="view-all-btn" onClick={() => setActiveTab('expenses')}>View All</span>
-                  </div>
-                  <div className="category-list">
-                    {dashboard.category_breakdown.slice(0, 4).map((cat, index) => (
-                      <div key={index} className="category-item">
-                        <div className="category-icon" style={{backgroundColor: cat.category__color || '#6366f1'}}>
-                          {cat.category__icon || cat.category__name?.charAt(0)}
-                        </div>
-                        <div className="category-info">
-                          <div className="category-name">{cat.category__name}</div>
-                          <div className="category-count">{expenses.filter(e => e.category_name === cat.category__name).length} transactions</div>
-                          <div className="category-bar">
-                            <div 
-                              className="category-bar-fill" 
-                              style={{ 
-                                width: `${(cat.total / dashboard.spent * 100) || 0}%`,
-                                backgroundColor: cat.category__color || '#6366f1'
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div className="category-amount">${cat.total?.toFixed(2)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Quick Actions */}
               <div className="quick-actions">
@@ -642,6 +612,119 @@ function App() {
                     <div className="action-icon">🎯</div>
                     <div className="action-text">Set Budget</div>
                   </button>
+                </div>
+              </div>
+
+              {/* Modern Top Categories */}
+              {dashboard.category_breakdown && dashboard.category_breakdown.length > 0 && (
+                <div className="modern-categories-card">
+                  <div className="modern-categories-header">
+                    <div className="modern-categories-title">Top Categories</div>
+                    <span className="modern-view-all-btn" onClick={() => setActiveTab('expenses')}>View All</span>
+                  </div>
+                  <div className="modern-category-row">
+                    {dashboard.category_breakdown.slice(0, 4).map((cat, index) => (
+                      <div key={index} className="modern-category-item">
+                        <div className="category-circle-container">
+                          <svg className="category-circle" width="80" height="80" viewBox="0 0 80 80">
+                            <circle
+                              cx="40"
+                              cy="40"
+                              r="35"
+                              fill="none"
+                              stroke="#f3f4f6"
+                              strokeWidth="6"
+                            />
+                            <circle
+                              cx="40"
+                              cy="40"
+                              r="35"
+                              fill="none"
+                              stroke={cat.category__color || '#6366f1'}
+                              strokeWidth="6"
+                              strokeDasharray={`${((cat.total / dashboard.spent) * 220) || 0} 220`}
+                              strokeLinecap="round"
+                              transform="rotate(-90 40 40)"
+                            />
+                          </svg>
+                          <div className="category-circle-content">
+                            <div className="category-icon-modern" style={{color: cat.category__color || '#6366f1'}}>
+                              {cat.category__icon || cat.category__name?.charAt(0)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="category-details-modern">
+                          <div className="category-name-modern">{cat.category__name}</div>
+                          <div className="category-amount-modern">₹{cat.total?.toFixed(2)}</div>
+                          <div className="category-percentage-modern">{((cat.total / dashboard.spent) * 100 || 0).toFixed(1)}%</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Dashboard Reports Section */}
+            <div className="dashboard-reports">
+              <div className="dashboard-reports-card">
+                <div className="reports-header">
+                  <div className="reports-title-section">
+                    <div className="reports-title">📊 Financial Reports</div>
+                    <div className="reports-subtitle">Monthly performance overview</div>
+                  </div>
+                  <span className="reports-view-all-btn" onClick={() => setActiveTab('reports')}>View All →</span>
+                </div>
+                <div className="reports-preview">
+                  {reports.length === 0 ? (
+                    <div className="reports-empty">
+                      <div className="empty-icon">📋</div>
+                      <p>No reports generated yet</p>
+                      <span className="empty-subtitle">Reports will appear here once you have transaction data</span>
+                    </div>
+                  ) : (
+                    <div className="reports-grid-preview">
+                      {reports.slice(0, 3).map((report, index) => (
+                        <div key={index} className="report-preview-card">
+                          <div className="report-card-header">
+                            <div className="report-month-info">
+                              <span className="report-month">{report.month_name}</span>
+                              <span className="report-year">{new Date(report.month + '-01').getFullYear()}</span>
+                            </div>
+                            <button 
+                              className="report-download-btn"
+                              onClick={() => downloadReport(report.month)}
+                              title="Download Report"
+                            >
+                              ⬇️
+                            </button>
+                          </div>
+                          <div className="report-summary">
+                            <div className="summary-item">
+                              <div className="summary-icon income-icon">💰</div>
+                              <div className="summary-details">
+                                <span className="summary-label">Income</span>
+                                <span className="summary-value income">₹{report.income.toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <div className="summary-item">
+                              <div className="summary-icon expense-icon">💸</div>
+                              <div className="summary-details">
+                                <span className="summary-label">Expenses</span>
+                                <span className="summary-value expense">₹{report.expenses.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="report-net-savings">
+                            <span className="net-label">Net Savings</span>
+                            <span className={`net-value ${report.net_savings >= 0 ? 'positive' : 'negative'}`}>
+                              {report.net_savings >= 0 ? '+' : ''}₹{report.net_savings.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -671,7 +754,7 @@ function App() {
                       <span className="date">{new Date(expense.date).toLocaleDateString()}</span>
                     </div>
                     <div className="expense-actions">
-                      <span className="amount">-${expense.amount}</span>
+                      <span className="amount">-₹{expense.amount}</span>
                       <button className="delete-btn" onClick={() => deleteExpense(expense.id)}>🗑️</button>
                     </div>
                   </div>
@@ -703,7 +786,7 @@ function App() {
                     </div>
                     <div className="transaction-actions">
                       <span className="amount">
-                        {transaction.type === 'ADD' ? '+' : '-'}${transaction.amount}
+                        {transaction.type === 'ADD' ? '+' : '-'}₹{transaction.amount}
                       </span>
                       <button className="delete-btn" onClick={() => deleteTransaction(transaction.id)}>🗑️</button>
                     </div>
@@ -717,63 +800,92 @@ function App() {
         {activeTab === 'reports' && (
           <div className="reports-tab">
             <div className="tab-header">
-              <h3>Monthly Reports</h3>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="month-selector"
-              />
+              <div className="tab-title-section">
+                <h3>📊 Financial Reports</h3>
+                <p className="tab-subtitle">Comprehensive monthly financial analysis</p>
+              </div>
+              <div className="tab-controls">
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="month-selector"
+                />
+              </div>
             </div>
             <div className="reports-grid">
               {reports.length === 0 ? (
                 <div className="empty-state">
-                  <p>No reports available.</p>
+                  <div className="empty-icon">📊</div>
+                  <h4>No Reports Available</h4>
+                  <p>Start tracking your expenses to generate monthly reports</p>
                 </div>
               ) : (
                 reports.slice(0, 6).map((report, index) => (
-                  <div key={index} className="report-card">
-                    <div className="report-header">
-                      <h4>{report.month_name}</h4>
+                  <div key={index} className="report-card-detailed">
+                    <div className="report-card-header">
+                      <div className="report-title-section">
+                        <h4>{report.month_name}</h4>
+                        <span className="report-period">{new Date(report.month + '-01').getFullYear()}</span>
+                      </div>
                       <div className="report-actions">
                         <button 
                           className="download-btn"
                           onClick={() => downloadReport(report.month)}
                           title="Download Report"
                         >
-                          📥
+                          ⬇️ Download
                         </button>
-                        <span className={`net-savings ${report.net_savings >= 0 ? 'positive' : 'negative'}`}>
-                          {report.net_savings >= 0 ? '+' : ''}${report.net_savings.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="report-metrics">
+                      <div className="metric-item">
+                        <div className="metric-icon income">💰</div>
+                        <div className="metric-info">
+                          <span className="metric-label">Total Income</span>
+                          <span className="metric-value income">₹{report.income.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="metric-item">
+                        <div className="metric-icon expense">💸</div>
+                        <div className="metric-info">
+                          <span className="metric-label">Total Expenses</span>
+                          <span className="metric-value expense">₹{report.expenses.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="report-net-result">
+                      <span className="net-label">Net Savings</span>
+                      <span className={`net-amount ${report.net_savings >= 0 ? 'positive' : 'negative'}`}>
+                        {report.net_savings >= 0 ? '+' : ''}₹{report.net_savings.toFixed(2)}
                         </span>
                       </div>
-                    </div>
-                    <div className="report-stats">
-                      <div className="stat-row">
-                        <span className="stat-label">💰 Income:</span>
-                        <span className="stat-value income">${report.income.toFixed(2)}</span>
+                      <div className="report-stats">
+                        <div className="stat-row">
+                          <span className="stat-label">💰 Income:</span>
+                          <span className="stat-value income">₹{report.income.toFixed(2)}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label">💸 Expenses:</span>
+                          <span className="stat-value expense">₹{report.expenses.toFixed(2)}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label">🎯 Budget:</span>
+                          <span className="stat-value">₹{report.budget.toFixed(2)}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label">📊 Transactions:</span>
+                          <span className="stat-value">{report.transactions_count}</span>
+                        </div>
                       </div>
-                      <div className="stat-row">
-                        <span className="stat-label">💸 Expenses:</span>
-                        <span className="stat-value expense">${report.expenses.toFixed(2)}</span>
+                      <div className="report-breakdown">
+                        <div className="breakdown-item">
+                          <span>Income Transactions: {report.income_transactions}</span>
+                        </div>
+                        <div className="breakdown-item">
+                          <span>Expense Transactions: {report.expense_transactions}</span>
+                        </div>
                       </div>
-                      <div className="stat-row">
-                        <span className="stat-label">🎯 Budget:</span>
-                        <span className="stat-value">${report.budget.toFixed(2)}</span>
-                      </div>
-                      <div className="stat-row">
-                        <span className="stat-label">📊 Transactions:</span>
-                        <span className="stat-value">{report.transactions_count}</span>
-                      </div>
-                    </div>
-                    <div className="report-breakdown">
-                      <div className="breakdown-item">
-                        <span>Income Transactions: {report.income_transactions}</span>
-                      </div>
-                      <div className="breakdown-item">
-                        <span>Expense Transactions: {report.expense_transactions}</span>
-                      </div>
-                    </div>
                     {report.budget > 0 && (
                       <div className="budget-progress">
                         <div className="progress-bar">
@@ -813,7 +925,7 @@ function App() {
                 type="number"
                 step="0.01"
                 min="0.01"
-                placeholder="Amount ($)"
+                placeholder="Amount (₹)"
                 value={newExpense.amount}
                 onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
                 required
@@ -859,7 +971,7 @@ function App() {
                 type="number"
                 step="0.01"
                 min="0.01"
-                placeholder="Amount ($)"
+                placeholder="Amount (₹)"
                 value={newMoney.amount}
                 onChange={(e) => setNewMoney({...newMoney, amount: e.target.value})}
                 required
@@ -889,7 +1001,7 @@ function App() {
                 type="number"
                 step="0.01"
                 min="0.01"
-                placeholder="Budget Amount ($)"
+                placeholder="Budget Amount (₹)"
                 value={newBudget.amount}
                 onChange={(e) => setNewBudget({...newBudget, amount: e.target.value})}
                 required

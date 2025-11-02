@@ -5,10 +5,10 @@
 
 .month-selector {
   padding: 8px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   font-size: 14px;
-  background: white;
+  background: #ffffff;
 }
 
 .reports-grid {
@@ -19,11 +19,11 @@
 }
 
 .report-card {
-  background: white;
+  background: #ffffff;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f3f4f6;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e5e5;
 }
 
 .report-header {
@@ -32,7 +32,7 @@
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 .report-actions {
@@ -42,7 +42,7 @@
 }
 
 .download-btn {
-  background: #3b82f6;
+  background: #000000;
   color: white;
   border: none;
   border-radius: 6px;
@@ -53,7 +53,7 @@
 }
 
 .download-btn:hover {
-  background: #2563eb;
+  background: #333333;
 }
 
 .report-header h4 {
@@ -71,13 +71,13 @@
 }
 
 .net-savings.positive {
-  color: #10b981;
-  background: #ecfdf5;
+  color: #333333;
+  background: #f8f9fa;
 }
 
 .net-savings.negative {
-  color: #ef4444;
-  background: #fef2f2;
+  color: #000000;
+  background: #f8f9fa;
 }
 
 .report-stats {
@@ -102,17 +102,17 @@
 }
 
 .stat-value.income {
-  color: #10b981;
+  color: #333333;
 }
 
 .stat-value.expense {
-  color: #ef4444;
+  color: #000000;
 }
 
 .report-breakdown {
   margin-bottom: 16px;
   padding-top: 12px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #e5e5e5;
 }
 
 .breakdown-item {
@@ -127,7 +127,7 @@
 
 .budget-progress .progress-bar {
   height: 6px;
-  background: #f3f4f6;
+  background: #e5e5e5;
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 6px;
