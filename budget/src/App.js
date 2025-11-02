@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import './reports.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -16,6 +17,8 @@ function App() {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showSetBudget, setShowSetBudget] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [reports, setReports] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [newExpense, setNewExpense] = useState({ 
     amount: '', description: '', category: '', 
     date: new Date().toISOString().split('T')[0] 
@@ -26,7 +29,7 @@ function App() {
     month: new Date().toISOString().slice(0, 7) 
   });
 
-  const API_BASE = 'http://192.168.1.43:8000/api';
+  const API_BASE = 'http://localhost:8000/api';
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('isAuthenticated');
@@ -49,8 +52,27 @@ function App() {
       fetchDashboard(),
       fetchExpenses(),
       fetchCategories(),
-      fetchTransactions()
+      fetchTransactions(),
+      fetchReports()
     ]);
+  };
+
+  const fetchReports = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/monthly-reports/`, { 
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setReports(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      setReports([]);
+    }
   };
 
   const checkAuth = async () => {
@@ -75,6 +97,7 @@ function App() {
 
   const login = async (e) => {
     e.preventDefault();
+    console.log('Login attempt:', loginData);
     try {
       const response = await fetch(`${API_BASE}/login/`, {
         method: 'POST',
@@ -85,17 +108,20 @@ function App() {
         body: JSON.stringify(loginData)
       });
       
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
+      
       if (data.success) {
         setIsAuthenticated(true);
         localStorage.setItem('isAuthenticated', 'true');
         setLoginData({ username: '', password: '' });
       } else {
-        alert('Invalid credentials');
+        alert(`Login failed: ${data.message || 'Invalid credentials'}`);
       }
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Login error');
+      alert('Login error - check console');
     }
   };
 
@@ -125,9 +151,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setDashboard(data);
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       }
     } catch (error) {
       console.error('Error fetching dashboard:', error);
@@ -145,9 +168,6 @@ function App() {
       if (response.ok) { 
         const data = await response.json();
         setExpenses(Array.isArray(data) ? data : []);
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       }
     } catch (error) {
       console.error('Error fetching expenses:', error);
@@ -166,9 +186,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setCategories(Array.isArray(data) ? data : []);
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -187,9 +204,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setTransactions(Array.isArray(data) ? data : []);
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -219,9 +233,6 @@ function App() {
         setShowAddExpense(false);
         await fetchAll();
         alert('Expense added successfully!');
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       } else {
         alert('Failed to add expense. Please try again.');
       }
@@ -252,9 +263,6 @@ function App() {
         setShowAddMoney(false);
         await fetchAll();
         alert(`Funds added successfully! New balance: $${data.new_balance?.toFixed(2)}`);
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       } else {
         alert('Failed to add funds. Please try again.');
       }
@@ -284,9 +292,6 @@ function App() {
         setShowSetBudget(false);
         await fetchDashboard();
         alert('Budget set successfully!');
-      } else if (response.status === 403) {
-        setIsAuthenticated(false);
-        localStorage.setItem('isAuthenticated', 'false');
       } else {
         alert('Failed to set budget. Please try again.');
       }
@@ -296,9 +301,117 @@ function App() {
     }
   };
 
+  const deleteExpense = async (expenseId) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE}/expenses/${expenseId}/delete/`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        await fetchAll();
+        alert('Expense deleted and refunded successfully!');
+      } else {
+        alert('Failed to delete expense.');
+      }
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      alert('Error deleting expense.');
+    }
+  };
+
+  const deleteTransaction = async (transactionId) => {
+    if (!window.confirm('Are you sure you want to delete this transaction?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE}/transactions/${transactionId}/delete/`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        await fetchAll();
+        alert('Transaction deleted successfully!');
+      } else {
+        alert('Failed to delete transaction.');
+      }
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('Error deleting transaction.');
+    }
+  };
+
   const calculateProgress = () => {
     if (dashboard.budget === 0 || dashboard.budget === null) return 0;
     return Math.min((dashboard.spent / dashboard.budget) * 100, 100);
+  };
+
+  const downloadReport = async (monthStr) => {
+    try {
+      const [year, month] = monthStr.split('-');
+      const response = await fetch(`${API_BASE}/download-report/${year}/${month}/`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Generate CSV content
+        let csvContent = `Monthly Report - ${data.month}\n`;
+        csvContent += `Period: ${data.period}\n\n`;
+        csvContent += `SUMMARY\n`;
+        csvContent += `Total Income,$${data.summary.total_income.toFixed(2)}\n`;
+        csvContent += `Total Expenses,$${data.summary.total_expenses.toFixed(2)}\n`;
+        csvContent += `Net Savings,$${data.summary.net_savings.toFixed(2)}\n`;
+        csvContent += `Budget,$${data.summary.budget.toFixed(2)}\n`;
+        csvContent += `Budget Remaining,$${data.summary.budget_remaining.toFixed(2)}\n\n`;
+        
+        csvContent += `ALL TRANSACTIONS\n`;
+        csvContent += `Date,Type,Amount,Description\n`;
+        data.transactions.forEach(trans => {
+          csvContent += `${trans.date},${trans.type},$${trans.amount.toFixed(2)},"${trans.description}"\n`;
+        });
+        
+        csvContent += `\nDETAILED EXPENSES\n`;
+        csvContent += `Date,Amount,Description,Category\n`;
+        data.expenses.forEach(exp => {
+          csvContent += `${exp.date},$${exp.amount.toFixed(2)},"${exp.description}",${exp.category}\n`;
+        });
+        
+        // Download CSV file
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Monthly_Report_${data.month.replace(' ', '_')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        alert('Report downloaded successfully!');
+      } else {
+        alert('Failed to download report.');
+      }
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      alert('Error downloading report.');
+    }
   };
 
   if (loading) {
@@ -353,38 +466,50 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-content">
+      <div className="sidebar">
+        <div className="sidebar-header">
           <h1>💰 BudgetPro</h1>
+        </div>
+        <nav className="sidebar-nav">
+          <button 
+            className={activeTab === 'dashboard' ? 'nav-item active' : 'nav-item'} 
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <span className="nav-icon">📊</span>
+            <span className="nav-text">Dashboard</span>
+          </button>
+          <button 
+            className={activeTab === 'expenses' ? 'nav-item active' : 'nav-item'} 
+            onClick={() => setActiveTab('expenses')}
+          >
+            <span className="nav-icon">💸</span>
+            <span className="nav-text">Expenses</span>
+          </button>
+          <button 
+            className={activeTab === 'transactions' ? 'nav-item active' : 'nav-item'} 
+            onClick={() => setActiveTab('transactions')}
+          >
+            <span className="nav-icon">📋</span>
+            <span className="nav-text">History</span>
+          </button>
+          <button 
+            className={activeTab === 'reports' ? 'nav-item active' : 'nav-item'} 
+            onClick={() => setActiveTab('reports')}
+          >
+            <span className="nav-icon">📊</span>
+            <span className="nav-text">Reports</span>
+          </button>
+        </nav>
+        <div className="sidebar-footer">
           <button className="logout-btn" onClick={logout}>Sign Out</button>
         </div>
-      </header>
+      </div>
 
-      <nav className="nav-tabs">
-        <button 
-          className={activeTab === 'dashboard' ? 'active' : ''} 
-          onClick={() => setActiveTab('dashboard')}
-        >
-          <span className="tab-icon">📊</span>
-          <span className="tab-text">Dashboard</span>
-        </button>
-        <button 
-          className={activeTab === 'expenses' ? 'active' : ''} 
-          onClick={() => setActiveTab('expenses')}
-        >
-          <span className="tab-icon">💸</span>
-          <span className="tab-text">Expenses</span>
-        </button>
-        <button 
-          className={activeTab === 'transactions' ? 'active' : ''} 
-          onClick={() => setActiveTab('transactions')}
-        >
-          <span className="tab-icon">📋</span>
-          <span className="tab-text">History</span>
-        </button>
-      </nav>
-
-      <main className="main-content">
+      <div className="main-wrapper">
+        <header className="header">
+          <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
+        </header>
+        <main className="main-content">
         {activeTab === 'dashboard' && (
           <div className="dashboard-tab">
             <div className="dashboard-left">
@@ -545,7 +670,10 @@ function App() {
                       <span className="category">{expense.category_name}</span>
                       <span className="date">{new Date(expense.date).toLocaleDateString()}</span>
                     </div>
-                    <span className="amount">-${expense.amount}</span>
+                    <div className="expense-actions">
+                      <span className="amount">-${expense.amount}</span>
+                      <button className="delete-btn" onClick={() => deleteExpense(expense.id)}>🗑️</button>
+                    </div>
                   </div>
                 ))
               )}
@@ -573,16 +701,103 @@ function App() {
                       <span className="description">{transaction.description}</span>
                       <span className="date">{new Date(transaction.date).toLocaleDateString()}</span>
                     </div>
-                    <span className="amount">
-                      {transaction.type === 'ADD' ? '+' : '-'}${transaction.amount}
-                    </span>
+                    <div className="transaction-actions">
+                      <span className="amount">
+                        {transaction.type === 'ADD' ? '+' : '-'}${transaction.amount}
+                      </span>
+                      <button className="delete-btn" onClick={() => deleteTransaction(transaction.id)}>🗑️</button>
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
         )}
-      </main>
+
+        {activeTab === 'reports' && (
+          <div className="reports-tab">
+            <div className="tab-header">
+              <h3>Monthly Reports</h3>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="month-selector"
+              />
+            </div>
+            <div className="reports-grid">
+              {reports.length === 0 ? (
+                <div className="empty-state">
+                  <p>No reports available.</p>
+                </div>
+              ) : (
+                reports.slice(0, 6).map((report, index) => (
+                  <div key={index} className="report-card">
+                    <div className="report-header">
+                      <h4>{report.month_name}</h4>
+                      <div className="report-actions">
+                        <button 
+                          className="download-btn"
+                          onClick={() => downloadReport(report.month)}
+                          title="Download Report"
+                        >
+                          📥
+                        </button>
+                        <span className={`net-savings ${report.net_savings >= 0 ? 'positive' : 'negative'}`}>
+                          {report.net_savings >= 0 ? '+' : ''}${report.net_savings.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="report-stats">
+                      <div className="stat-row">
+                        <span className="stat-label">💰 Income:</span>
+                        <span className="stat-value income">${report.income.toFixed(2)}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">💸 Expenses:</span>
+                        <span className="stat-value expense">${report.expenses.toFixed(2)}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">🎯 Budget:</span>
+                        <span className="stat-value">${report.budget.toFixed(2)}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">📊 Transactions:</span>
+                        <span className="stat-value">{report.transactions_count}</span>
+                      </div>
+                    </div>
+                    <div className="report-breakdown">
+                      <div className="breakdown-item">
+                        <span>Income Transactions: {report.income_transactions}</span>
+                      </div>
+                      <div className="breakdown-item">
+                        <span>Expense Transactions: {report.expense_transactions}</span>
+                      </div>
+                    </div>
+                    {report.budget > 0 && (
+                      <div className="budget-progress">
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill" 
+                            style={{ 
+                              width: `${Math.min((report.expenses / report.budget) * 100, 100)}%`,
+                              backgroundColor: report.expenses > report.budget ? '#ef4444' : '#10b981'
+                            }}
+                          ></div>
+                        </div>
+                        <span className="progress-text">
+                          {((report.expenses / report.budget) * 100).toFixed(1)}% of budget used
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        </main>
+      </div>
 
       <button className="fab" onClick={() => setShowAddExpense(true)}>
         +

@@ -8,11 +8,13 @@ from django.db.models import Sum
 from django.db import transaction
 from datetime import datetime, timedelta
 from decimal import Decimal
+from calendar import monthrange
 from django.contrib.auth.models import User
 from .models import Category, MonthlyBudget, Expense, Wallet, Transaction
 from .serializers import (CategorySerializer, MonthlyBudgetSerializer, ExpenseSerializer, 
                          WalletSerializer, TransactionSerializer, AddMoneySerializer)
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -58,6 +60,7 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=400)
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     permission_classes = [AllowAny]
@@ -91,6 +94,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def dashboard_summary(request):
     current_month = datetime.now().replace(day=1).date()
     admin_user = User.objects.filter(username='muskan').first()
@@ -165,6 +169,7 @@ def dashboard_summary(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def add_money(request):
     try:
         amount = Decimal(str(request.data.get('amount', 0)))
@@ -202,6 +207,7 @@ def add_money(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def transactions(request):
     admin_user = User.objects.filter(username='muskan').first()
     if admin_user:
@@ -210,8 +216,11 @@ def transactions(request):
         return Response(serializer.data)
     return Response([])
 
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def monthly_analytics(request):
     """Get detailed monthly spending analytics"""
     admin_user = User.objects.filter(username='muskan').first()
@@ -251,6 +260,7 @@ def monthly_analytics(request):
 
 @api_view(['DELETE'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def delete_expense(request, expense_id):
     """Delete an expense and update wallet balance"""
     admin_user = User.objects.filter(username='muskan').first()
@@ -280,8 +290,170 @@ def delete_expense(request, expense_id):
     except Expense.DoesNotExist:
         return Response({'error': 'Expense not found'}, status=404)
 
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def delete_transaction(request, transaction_id):
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    try:
+        trans = Transaction.objects.get(id=transaction_id, user=admin_user)
+        
+        with transaction.atomic():
+            wallet, created = Wallet.objects.get_or_create(user=admin_user)
+            
+            # Reverse the transaction effect on wallet
+            if trans.type == 'ADD':
+                wallet.balance = max(0, wallet.balance - trans.amount)
+            else:  # EXPENSE
+                wallet.balance += trans.amount
+            
+            wallet.save()
+            trans.delete()
+        
+        return Response({'success': True, 'message': 'Transaction deleted successfully'})
+    except Transaction.DoesNotExist:
+        return Response({'error': 'Transaction not found'}, status=404)
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@csrf_exempt
+def monthly_reports(request):
+    """Get monthly transaction reports"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    # Get last 12 months data
+    reports = []
+    for i in range(12):
+        target_date = datetime.now().replace(day=1) - timedelta(days=i*30)
+        month_start = target_date.replace(day=1).date()
+        
+        # Get month transactions
+        month_transactions = Transaction.objects.filter(
+            user=admin_user,
+            date__year=month_start.year,
+            date__month=month_start.month
+        )
+        
+        # Calculate totals
+        income = month_transactions.filter(type='ADD').aggregate(Sum('amount'))['amount__sum'] or 0
+        expenses = month_transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        # Get budget
+        try:
+            budget = MonthlyBudget.objects.get(user=admin_user, month=month_start)
+            budget_amount = float(budget.amount)
+        except MonthlyBudget.DoesNotExist:
+            budget_amount = 0
+        
+        reports.append({
+            'month': month_start.strftime('%Y-%m'),
+            'month_name': target_date.strftime('%B %Y'),
+            'income': float(income),
+            'expenses': float(expenses),
+            'net_savings': float(income) - float(expenses),
+            'budget': budget_amount,
+            'transactions_count': month_transactions.count(),
+            'income_transactions': month_transactions.filter(type='ADD').count(),
+            'expense_transactions': month_transactions.filter(type='EXPENSE').count()
+        })
+    
+    return Response(reports)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def download_monthly_report(request, year, month):
+    """Download detailed monthly report with all transactions"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    try:
+        # Parse year and month
+        year = int(year)
+        month = int(month)
+        
+        # Get month start and end dates
+        month_start = datetime(year, month, 1).date()
+        days_in_month = monthrange(year, month)[1]
+        month_end = datetime(year, month, days_in_month).date()
+        
+        # Get all transactions for the month
+        transactions = Transaction.objects.filter(
+            user=admin_user,
+            date__gte=month_start,
+            date__lte=month_end
+        ).order_by('date')
+        
+        # Get expenses with category details
+        expenses = Expense.objects.filter(
+            user=admin_user,
+            date__gte=month_start,
+            date__lte=month_end
+        ).select_related('category').order_by('date')
+        
+        # Calculate totals
+        income_total = transactions.filter(type='ADD').aggregate(Sum('amount'))['amount__sum'] or 0
+        expense_total = transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        # Get budget
+        try:
+            budget = MonthlyBudget.objects.get(user=admin_user, month=month_start)
+            budget_amount = float(budget.amount)
+        except MonthlyBudget.DoesNotExist:
+            budget_amount = 0
+        
+        # Prepare detailed transactions
+        detailed_transactions = []
+        for trans in transactions:
+            detailed_transactions.append({
+                'date': trans.date.strftime('%Y-%m-%d'),
+                'type': trans.type,
+                'amount': float(trans.amount),
+                'description': trans.description
+            })
+        
+        # Prepare detailed expenses
+        detailed_expenses = []
+        for exp in expenses:
+            detailed_expenses.append({
+                'date': exp.date.strftime('%Y-%m-%d'),
+                'amount': float(exp.amount),
+                'description': exp.description,
+                'category': exp.category.name if exp.category else 'Uncategorized'
+            })
+        
+        report_data = {
+            'month': month_start.strftime('%B %Y'),
+            'period': f"{month_start.strftime('%Y-%m-%d')} to {month_end.strftime('%Y-%m-%d')}",
+            'summary': {
+                'total_income': float(income_total),
+                'total_expenses': float(expense_total),
+                'net_savings': float(income_total) - float(expense_total),
+                'budget': budget_amount,
+                'budget_remaining': budget_amount - float(expense_total) if budget_amount > 0 else 0
+            },
+            'transactions': detailed_transactions,
+            'expenses': detailed_expenses,
+            'transaction_count': transactions.count(),
+            'expense_count': expenses.count()
+        }
+        
+        return Response(report_data)
+        
+    except ValueError:
+        return Response({'error': 'Invalid year or month'}, status=400)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@csrf_exempt
 def spending_insights(request):
     """Get AI-like spending insights and recommendations"""
     admin_user = User.objects.filter(username='muskan').first()
