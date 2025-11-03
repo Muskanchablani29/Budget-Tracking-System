@@ -29,6 +29,8 @@ function App() {
     amount: '', 
     month: new Date().toISOString().slice(0, 7) 
   });
+  const [transactionFilter, setTransactionFilter] = useState({ type: 'ALL', month: '' });
+  const [expenseFilter, setExpenseFilter] = useState({ category: 'ALL', month: '' });
 
   const API_BASE = 'http://localhost:8000/api';
 
@@ -45,6 +47,11 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchAll();
+      // Auto-refresh data every 30 seconds to sync with admin changes
+      const interval = setInterval(() => {
+        fetchAll();
+      }, 30000);
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
@@ -358,6 +365,20 @@ function App() {
     if (dashboard.budget === 0 || dashboard.budget === null) return 0;
     return Math.min((dashboard.spent / dashboard.budget) * 100, 100);
   };
+
+  const filteredTransactions = transactions.filter(transaction => {
+    const typeMatch = transactionFilter.type === 'ALL' || transaction.type === transactionFilter.type;
+    const monthMatch = !transactionFilter.month || 
+      new Date(transaction.date).toISOString().slice(0, 7) === transactionFilter.month;
+    return typeMatch && monthMatch;
+  });
+
+  const filteredExpenses = expenses.filter(expense => {
+    const categoryMatch = expenseFilter.category === 'ALL' || expense.category === parseInt(expenseFilter.category);
+    const monthMatch = !expenseFilter.month || 
+      new Date(expense.date).toISOString().slice(0, 7) === expenseFilter.month;
+    return categoryMatch && monthMatch;
+  });
 
   const downloadReport = async (monthStr) => {
     try {
@@ -737,13 +758,38 @@ function App() {
               <h3>Recent Expenses</h3>
               <button className="add-btn" onClick={() => setShowAddExpense(true)}>+ Add Expense</button>
             </div>
+            <div className="filters">
+              <select 
+                value={expenseFilter.category} 
+                onChange={(e) => setExpenseFilter({...expenseFilter, category: e.target.value})}
+                className="filter-select"
+              >
+                <option value="ALL">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                ))}
+              </select>
+              <input
+                type="month"
+                value={expenseFilter.month}
+                onChange={(e) => setExpenseFilter({...expenseFilter, month: e.target.value})}
+                className="filter-month"
+                placeholder="Filter by month"
+              />
+              <button 
+                className="clear-filters-btn" 
+                onClick={() => setExpenseFilter({ category: 'ALL', month: '' })}
+              >
+                Clear
+              </button>
+            </div>
             <div className="expenses-list">
-              {expenses.length === 0 ? (
+              {filteredExpenses.length === 0 ? (
                 <div className="empty-state">
-                  <p>No expenses yet. Add your first expense!</p>
+                  <p>No expenses found. {expenses.length === 0 ? 'Add your first expense!' : 'Try adjusting filters.'}</p>
                 </div>
               ) : (
-                expenses.map(expense => (
+                filteredExpenses.map(expense => (
                   <div key={expense.id} className="expense-item">
                     <div className="expense-icon" style={{backgroundColor: expense.category_color || '#6366f1'}}>
                       {expense.category_icon || expense.category_name?.charAt(0)}
@@ -769,13 +815,37 @@ function App() {
             <div className="tab-header">
               <h3>Transaction History</h3>
             </div>
+            <div className="filters">
+              <select 
+                value={transactionFilter.type} 
+                onChange={(e) => setTransactionFilter({...transactionFilter, type: e.target.value})}
+                className="filter-select"
+              >
+                <option value="ALL">All Types</option>
+                <option value="ADD">💰 Income</option>
+                <option value="EXPENSE">💸 Expenses</option>
+              </select>
+              <input
+                type="month"
+                value={transactionFilter.month}
+                onChange={(e) => setTransactionFilter({...transactionFilter, month: e.target.value})}
+                className="filter-month"
+                placeholder="Filter by month"
+              />
+              <button 
+                className="clear-filters-btn" 
+                onClick={() => setTransactionFilter({ type: 'ALL', month: '' })}
+              >
+                Clear
+              </button>
+            </div>
             <div className="transactions-list">
-              {transactions.length === 0 ? (
+              {filteredTransactions.length === 0 ? (
                 <div className="empty-state">
-                  <p>No transactions yet.</p>
+                  <p>No transactions found. {transactions.length === 0 ? 'No transactions yet.' : 'Try adjusting filters.'}</p>
                 </div>
               ) : (
-                transactions.map(transaction => (
+                filteredTransactions.map(transaction => (
                   <div key={transaction.id} className={`transaction-item ${transaction.type.toLowerCase()}`}>
                     <div className="transaction-icon">
                       {transaction.type === 'ADD' ? '💰' : '💸'}

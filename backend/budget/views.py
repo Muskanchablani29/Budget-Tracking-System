@@ -341,7 +341,14 @@ def monthly_reports(request):
         
         # Calculate totals
         income = month_transactions.filter(type='ADD').aggregate(Sum('amount'))['amount__sum'] or 0
-        expenses = month_transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        # Get actual expenses (not deleted ones) from Expense model
+        month_expenses = Expense.objects.filter(
+            user=admin_user,
+            date__year=month_start.year,
+            date__month=month_start.month
+        )
+        expenses = month_expenses.aggregate(Sum('amount'))['amount__sum'] or 0
         
         # Get budget
         try:
