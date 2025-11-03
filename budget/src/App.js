@@ -31,6 +31,9 @@ function App() {
   });
   const [transactionFilter, setTransactionFilter] = useState({ type: 'ALL', month: '' });
   const [expenseFilter, setExpenseFilter] = useState({ category: 'ALL', month: '' });
+  const [showDescriptions, setShowDescriptions] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
 
   const API_BASE = 'http://localhost:8000/api';
 
@@ -379,6 +382,18 @@ function App() {
       new Date(expense.date).toISOString().slice(0, 7) === expenseFilter.month;
     return categoryMatch && monthMatch;
   });
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (passwordInput === '5950') {
+      setShowDescriptions(true);
+      setShowPasswordModal(false);
+      setPasswordInput('');
+    } else {
+      alert('Incorrect password!');
+      setPasswordInput('');
+    }
+  };
 
   const downloadReport = async (monthStr) => {
     try {
@@ -756,7 +771,14 @@ function App() {
           <div className="expenses-tab">
             <div className="tab-header">
               <h3>Recent Expenses</h3>
-              <button className="add-btn" onClick={() => setShowAddExpense(true)}>+ Add Expense</button>
+              <div className="header-actions">
+                {showDescriptions && (
+                  <button className="hide-desc-btn" onClick={() => setShowDescriptions(false)}>
+                    🙈 Hide Descriptions
+                  </button>
+                )}
+                <button className="add-btn" onClick={() => setShowAddExpense(true)}>+ Add Expense</button>
+              </div>
             </div>
             <div className="filters">
               <select 
@@ -795,12 +817,21 @@ function App() {
                       {expense.category_icon || expense.category_name?.charAt(0)}
                     </div>
                     <div className="expense-info">
-                      <span className="description">{expense.description}</span>
+                      <span className="description">{showDescriptions ? expense.description : 'Expense'}</span>
                       <span className="category">{expense.category_name}</span>
                       <span className="date">{new Date(expense.date).toLocaleDateString()}</span>
                     </div>
                     <div className="expense-actions">
                       <span className="amount">-₹{expense.amount}</span>
+                      {!showDescriptions && (
+                        <button 
+                          className="show-desc-btn" 
+                          onClick={() => setShowPasswordModal(true)}
+                          title="Show Description"
+                        >
+                          👁️
+                        </button>
+                      )}
                       <button className="delete-btn" onClick={() => deleteExpense(expense.id)}>🗑️</button>
                     </div>
                   </div>
@@ -814,6 +845,11 @@ function App() {
           <div className="transactions-tab">
             <div className="tab-header">
               <h3>Transaction History</h3>
+              {showDescriptions && (
+                <button className="hide-desc-btn" onClick={() => setShowDescriptions(false)}>
+                  🙈 Hide Descriptions
+                </button>
+              )}
             </div>
             <div className="filters">
               <select 
@@ -851,13 +887,24 @@ function App() {
                       {transaction.type === 'ADD' ? '💰' : '💸'}
                     </div>
                     <div className="transaction-info">
-                      <span className="description">{transaction.description}</span>
+                      <span className="description">
+                        {showDescriptions ? transaction.description : 'Transaction'}
+                      </span>
                       <span className="date">{new Date(transaction.date).toLocaleDateString()}</span>
                     </div>
                     <div className="transaction-actions">
                       <span className="amount">
                         {transaction.type === 'ADD' ? '+' : '-'}₹{transaction.amount}
                       </span>
+                      {!showDescriptions && (
+                        <button 
+                          className="show-desc-btn" 
+                          onClick={() => setShowPasswordModal(true)}
+                          title="Show Description"
+                        >
+                          👁️
+                        </button>
+                      )}
                       <button className="delete-btn" onClick={() => deleteTransaction(transaction.id)}>🗑️</button>
                     </div>
                   </div>
@@ -1026,6 +1073,29 @@ function App() {
               <div className="form-actions">
                 <button type="submit">Add Expense</button>
                 <button type="button" onClick={() => setShowAddExpense(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPasswordModal && (
+        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <form className="modal-form" onSubmit={handlePasswordSubmit}>
+              <h3>🔒 Enter Password</h3>
+              <p>Enter password to view transaction descriptions</p>
+              <input
+                type="password"
+                placeholder="Password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                required
+                autoFocus
+              />
+              <div className="form-actions">
+                <button type="submit">Unlock</button>
+                <button type="button" onClick={() => setShowPasswordModal(false)}>Cancel</button>
               </div>
             </form>
           </div>
