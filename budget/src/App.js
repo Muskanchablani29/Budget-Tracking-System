@@ -17,7 +17,9 @@ function App() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showSetBudget, setShowSetBudget] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('activeTab') || 'dashboard';
+  });
   const [reports, setReports] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [newExpense, setNewExpense] = useState({ 
@@ -147,7 +149,7 @@ function App() {
     } finally {
       setIsAuthenticated(false);
       localStorage.setItem('isAuthenticated', 'false');
-      setActiveTab('dashboard');
+      handleTabChange('dashboard');
     }
   };
 
@@ -395,6 +397,11 @@ function App() {
     }
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    localStorage.setItem('activeTab', tab);
+  };
+
   const downloadReport = async (monthStr) => {
     try {
       const [year, month] = monthStr.split('-');
@@ -510,28 +517,28 @@ function App() {
         <nav className="sidebar-nav">
           <button 
             className={activeTab === 'dashboard' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => handleTabChange('dashboard')}
           >
             <span className="nav-icon">📊</span>
             <span className="nav-text">Dashboard</span>
           </button>
           <button 
             className={activeTab === 'expenses' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => setActiveTab('expenses')}
+            onClick={() => handleTabChange('expenses')}
           >
             <span className="nav-icon">💸</span>
             <span className="nav-text">Expenses</span>
           </button>
           <button 
             className={activeTab === 'transactions' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => setActiveTab('transactions')}
+            onClick={() => handleTabChange('transactions')}
           >
             <span className="nav-icon">📋</span>
             <span className="nav-text">History</span>
           </button>
           <button 
             className={activeTab === 'reports' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => setActiveTab('reports')}
+            onClick={() => handleTabChange('reports')}
           >
             <span className="nav-icon">📊</span>
             <span className="nav-text">Reports</span>
@@ -640,7 +647,7 @@ function App() {
                     <div className="action-icon">💰</div>
                     <div className="action-text">Add Funds</div>
                   </button>
-                  <button className="action-btn" onClick={() => setActiveTab('transactions')}>
+                  <button className="action-btn" onClick={() => handleTabChange('transactions')}>
                     <div className="action-icon">📋</div>
                     <div className="action-text">View History</div>
                   </button>
@@ -656,7 +663,7 @@ function App() {
                 <div className="modern-categories-card">
                   <div className="modern-categories-header">
                     <div className="modern-categories-title">Top Categories</div>
-                    <span className="modern-view-all-btn" onClick={() => setActiveTab('expenses')}>View All</span>
+                    <span className="modern-view-all-btn" onClick={() => handleTabChange('expenses')}>View All</span>
                   </div>
                   <div className="modern-category-row">
                     {dashboard.category_breakdown.slice(0, 4).map((cat, index) => (
@@ -709,7 +716,7 @@ function App() {
                     <div className="reports-title">📊 Financial Reports</div>
                     <div className="reports-subtitle">Monthly performance overview</div>
                   </div>
-                  <span className="reports-view-all-btn" onClick={() => setActiveTab('reports')}>View All →</span>
+                  <span className="reports-view-all-btn" onClick={() => handleTabChange('reports')}>View All →</span>
                 </div>
                 <div className="reports-preview">
                   {reports.length === 0 ? (
