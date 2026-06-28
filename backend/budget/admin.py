@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, MonthlyBudget, Expense, Wallet, Transaction
+from .models import Category, MonthlyBudget, Expense, Wallet, Transaction, Person, PersonalTransaction
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -36,3 +36,25 @@ class TransactionAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('user')
+
+@admin.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    list_display = ['name', 'user', 'relationship', 'phone', 'email', 'get_balance']
+    list_filter = ['relationship', 'user']
+    search_fields = ['name', 'user__username', 'phone', 'email']
+    
+    def get_balance(self, obj):
+        return f"₹{obj.get_balance():.2f}"
+    get_balance.short_description = 'Balance'
+    get_balance.admin_order_field = 'name'
+
+@admin.register(PersonalTransaction)
+class PersonalTransactionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'person', 'type', 'amount', 'description', 'date', 'is_settled']
+    list_filter = ['type', 'date', 'is_settled', 'user', 'person__relationship']
+    search_fields = ['description', 'user__username', 'person__name']
+    date_hierarchy = 'date'
+    list_editable = ['is_settled']
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user', 'person')

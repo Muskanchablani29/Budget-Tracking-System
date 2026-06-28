@@ -5,14 +5,16 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from rest_framework.response import Response
 from django.db.models import Sum
+from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from datetime import datetime, timedelta
 from decimal import Decimal
 from calendar import monthrange
 from django.contrib.auth.models import User
-from .models import Category, MonthlyBudget, Expense, Wallet, Transaction
+from .models import Category, MonthlyBudget, Expense, Wallet, Transaction, Person, PersonalTransaction, PersonalRecord
 from .serializers import (CategorySerializer, MonthlyBudgetSerializer, ExpenseSerializer, 
-                         WalletSerializer, TransactionSerializer, AddMoneySerializer)
+                         WalletSerializer, TransactionSerializer, AddMoneySerializer, 
+                         PersonSerializer, PersonalTransactionSerializer, PersonalRecordSerializer)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -101,8 +103,17 @@ def dashboard_summary(request):
     if not admin_user:
         return Response({'error': 'Muskan user not found'}, status=404)
     
-    # Get or create wallet
+    # Calculate wallet balance from all transactions including refunds
+    all_transactions = Transaction.objects.filter(user=admin_user)
+    income = all_transactions.filter(type='ADD').aggregate(Sum('amount'))['amount__sum'] or 0
+    refunds = all_transactions.filter(type='REFUND').aggregate(Sum('amount'))['amount__sum'] or 0
+    expenses = all_transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or 0
+    calculated_balance = float(income) + float(refunds) - float(expenses)
+    
+    # Update wallet with calculated balance
     wallet, created = Wallet.objects.get_or_create(user=admin_user)
+    wallet.balance = max(0, calculated_balance)
+    wallet.save()
     
     # Get current month budget
     try:
@@ -218,6 +229,40 @@ def transactions(request):
 
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def verify_personal_password(request):
+    """Verify password for personal diary access"""
+    try:
+        password = request.data.get('password')
+        if password == 'Muskan2908':
+            return Response({'success': True})
+        return Response({'success': False}, status=401)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def personal_records(request):
+    """Handle personal diary records"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    if request.method == 'GET':
+        records = PersonalRecord.objects.filter(user=admin_user).order_by('-date')
+        serializer = PersonalRecordSerializer(records, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = PersonalRecordSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=admin_user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @csrf_exempt
@@ -276,10 +321,10 @@ def delete_expense(request, expense_id):
             wallet.balance += expense.amount
             wallet.save()
             
-            # Create refund transaction
+            # Create refund transaction (REFUND type to distinguish from income)
             Transaction.objects.create(
                 user=admin_user,
-                type='ADD',
+                type='REFUND',
                 amount=expense.amount,
                 description=f"Refund: {expense.description}"
             )
@@ -339,7 +384,7 @@ def monthly_reports(request):
             date__month=month_start.month
         )
         
-        # Calculate totals
+        # Calculate totals (exclude refunds from income)
         income = month_transactions.filter(type='ADD').aggregate(Sum('amount'))['amount__sum'] or 0
         
         # Get actual expenses (not deleted ones) from Expense model
@@ -404,7 +449,7 @@ def download_monthly_report(request, year, month):
             date__lte=month_end
         ).select_related('category').order_by('date')
         
-        # Calculate totals
+        # Calculate totals (exclude refunds from income)
         income_total = transactions.filter(type='ADD').aggregate(Sum('amount'))['amount__sum'] or 0
         expense_total = transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or 0
         
@@ -521,3 +566,169 @@ def spending_insights(request):
         'current_month_spent': float(current_spent),
         'last_month_spent': float(last_spent)
     })
+
+# Personal Money Management Views
+@method_decorator(csrf_exempt, name='dispatch')
+class PersonViewSet(viewsets.ModelViewSet):
+    serializer_class = PersonSerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        admin_user = User.objects.filter(username='muskan').first()
+        if admin_user:
+            return Person.objects.filter(user=admin_user)
+        return Person.objects.none()
+    
+    def perform_create(self, serializer):
+        admin_user = User.objects.filter(username='muskan').first()
+        if admin_user:
+            serializer.save(user=admin_user)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PersonalTransactionViewSet(viewsets.ModelViewSet):
+    serializer_class = PersonalTransactionSerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        admin_user = User.objects.filter(username='muskan').first()
+        if admin_user:
+            return PersonalTransaction.objects.filter(user=admin_user)
+        return PersonalTransaction.objects.none()
+    
+    def perform_create(self, serializer):
+        admin_user = User.objects.filter(username='muskan').first()
+        if admin_user:
+            serializer.save(user=admin_user)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def personal_dashboard(request):
+    """Get personal money management dashboard"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    # Get all personal transactions
+    transactions = PersonalTransaction.objects.filter(user=admin_user)
+    
+    # Calculate totals
+    total_lent = transactions.filter(type='LENT').aggregate(Sum('amount'))['amount__sum'] or 0
+    total_received = transactions.filter(type='RECEIVED').aggregate(Sum('amount'))['amount__sum'] or 0
+    total_borrowed = transactions.filter(type='BORROWED').aggregate(Sum('amount'))['amount__sum'] or 0
+    total_paid_back = transactions.filter(type='PAID_BACK').aggregate(Sum('amount'))['amount__sum'] or 0
+    
+    # Net calculations
+    net_lent = float(total_lent) - float(total_received)
+    net_borrowed = float(total_borrowed) - float(total_paid_back)
+    net_balance = net_lent - net_borrowed
+    
+    # Get people with balances
+    people = Person.objects.filter(user=admin_user)
+    people_balances = []
+    for person in people:
+        balance = person.get_balance()
+        if balance != 0:
+            people_balances.append({
+                'id': person.id,
+                'name': person.name,
+                'relationship': person.relationship,
+                'balance': float(balance),
+                'status': 'owes_you' if balance > 0 else 'you_owe'
+            })
+    
+    # Sort by absolute balance
+    people_balances.sort(key=lambda x: abs(x['balance']), reverse=True)
+    
+    return Response({
+        'total_lent': float(total_lent),
+        'total_received': float(total_received),
+        'total_borrowed': float(total_borrowed),
+        'total_paid_back': float(total_paid_back),
+        'net_lent': net_lent,
+        'net_borrowed': net_borrowed,
+        'net_balance': net_balance,
+        'people_count': people.count(),
+        'active_balances': len(people_balances),
+        'people_balances': people_balances[:10]  # Top 10
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def person_details(request, person_id):
+    """Get detailed transactions for a specific person"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    try:
+        person = Person.objects.get(id=person_id, user=admin_user)
+        transactions = PersonalTransaction.objects.filter(user=admin_user, person=person).order_by('-date')
+        
+        serializer = PersonalTransactionSerializer(transactions, many=True)
+        
+        return Response({
+            'person': PersonSerializer(person).data,
+            'transactions': serializer.data,
+            'balance': float(person.get_balance())
+        })
+    except Person.DoesNotExist:
+        return Response({'error': 'Person not found'}, status=404)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def settle_person(request, person_id):
+    """Mark all transactions with a person as settled"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    try:
+        person = Person.objects.get(id=person_id, user=admin_user)
+        PersonalTransaction.objects.filter(user=admin_user, person=person).update(is_settled=True)
+        
+        return Response({'success': True, 'message': f'All transactions with {person.name} marked as settled'})
+    except Person.DoesNotExist:
+        return Response({'error': 'Person not found'}, status=404)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def personal_reports(request):
+    """Get personal money management reports"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    
+    # Get last 6 months data
+    reports = []
+    for i in range(6):
+        target_date = datetime.now().replace(day=1) - timedelta(days=i*30)
+        month_start = target_date.replace(day=1).date()
+        
+        month_transactions = PersonalTransaction.objects.filter(
+            user=admin_user,
+            date__year=month_start.year,
+            date__month=month_start.month
+        )
+        
+        lent = month_transactions.filter(type='LENT').aggregate(Sum('amount'))['amount__sum'] or 0
+        received = month_transactions.filter(type='RECEIVED').aggregate(Sum('amount'))['amount__sum'] or 0
+        borrowed = month_transactions.filter(type='BORROWED').aggregate(Sum('amount'))['amount__sum'] or 0
+        paid_back = month_transactions.filter(type='PAID_BACK').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        reports.append({
+            'month': month_start.strftime('%Y-%m'),
+            'month_name': target_date.strftime('%B %Y'),
+            'lent': float(lent),
+            'received': float(received),
+            'borrowed': float(borrowed),
+            'paid_back': float(paid_back),
+            'net_lent': float(lent) - float(received),
+            'net_borrowed': float(borrowed) - float(paid_back),
+            'transactions_count': month_transactions.count()
+        })
+    
+    return Response(reports)

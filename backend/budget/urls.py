@@ -7,6 +7,8 @@ router = DefaultRouter()
 router.register(r'categories', views.CategoryViewSet)
 router.register(r'budgets', views.MonthlyBudgetViewSet, basename='monthlybudget')
 router.register(r'expenses', views.ExpenseViewSet, basename='expense')
+router.register(r'people', views.PersonViewSet, basename='person')
+router.register(r'personal-transactions', views.PersonalTransactionViewSet, basename='personal_transaction')
 
 urlpatterns = [
     path('api/', include(router.urls)),
@@ -22,4 +24,12 @@ urlpatterns = [
     path('api/login/', login_view, name='login'),
     path('api/logout/', logout_view, name='logout'),
     path('api/check-auth/', check_auth, name='check_auth'),
+    # Personal Money Management URLs
+    path('api/personal/dashboard/', views.personal_dashboard, name='personal_dashboard'),
+    path('api/personal/person/<int:person_id>/', views.person_details, name='person_details'),
+    path('api/personal/person/<int:person_id>/settle/', views.settle_person, name='settle_person'),
+    path('api/personal/reports/', views.personal_reports, name='personal_reports'),
+    # Personal Diary URLs
+    path('api/personal/verify-password/', views.verify_personal_password, name='verify_personal_password'),
+    path('api/personal/records/', views.personal_records, name='personal_records'),
 ]

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, MonthlyBudget, Expense, Wallet, Transaction
+from .models import Category, MonthlyBudget, Expense, Wallet, Transaction, Person, PersonalTransaction, PersonalRecord
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,3 +33,26 @@ class TransactionSerializer(serializers.ModelSerializer):
 class AddMoneySerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
     description = serializers.CharField(max_length=200, default="Added money")
+
+class PersonSerializer(serializers.ModelSerializer):
+    balance = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Person
+        fields = ['id', 'name', 'description', 'relationship', 'phone', 'email', 'balance', 'created_at']
+    
+    def get_balance(self, obj):
+        return float(obj.get_balance())
+
+class PersonalTransactionSerializer(serializers.ModelSerializer):
+    person_name = serializers.CharField(source='person.name', read_only=True)
+    person_relationship = serializers.CharField(source='person.relationship', read_only=True)
+    
+    class Meta:
+        model = PersonalTransaction
+        fields = ['id', 'person', 'person_name', 'person_relationship', 'type', 'amount', 'description', 'date', 'interest_rate', 'due_date', 'is_settled', 'created_at']
+
+class PersonalRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PersonalRecord
+        fields = ['id', 'type', 'amount', 'description', 'date', 'created_at']
