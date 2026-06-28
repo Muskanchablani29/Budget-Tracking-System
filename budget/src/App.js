@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import './reports.css';
-import './modern-categories.css';
+import Login from './Components/Login';
+import Loading from './Components/Loading';
+import Sidebar from './Components/Sidebar';
+import Dashboard from './Components/Dashboard';
+import Expenses from './Components/Expenses';
+import Transactions from './Components/Transactions';
+import Reports from './Components/Reports';
+import Personal from './Components/Personal';
+import Modals from './Components/Modals';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -36,6 +43,25 @@ function App() {
   const [showDescriptions, setShowDescriptions] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [people, setPeople] = useState([]);
+  const [personalTransactions, setPersonalTransactions] = useState([]);
+  const [personalDashboard, setPersonalDashboard] = useState({});
+  const [showAddPerson, setShowAddPerson] = useState(false);
+  const [showAddPersonalTransaction, setShowAddPersonalTransaction] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [newPerson, setNewPerson] = useState({ name: '', description: '', relationship: 'FRIEND', phone: '', email: '' });
+  const [newPersonalTransaction, setNewPersonalTransaction] = useState({ person: '', type: 'LENT', amount: '', description: '', date: new Date().toISOString().split('T')[0] });
+  const [personalAccess, setPersonalAccess] = useState(false);
+  const [personalRecords, setPersonalRecords] = useState([]);
+  const [personalSummary, setPersonalSummary] = useState({});
+  const [showAddPersonalRecord, setShowAddPersonalRecord] = useState(false);
+  const [newPersonalRecord, setNewPersonalRecord] = useState({
+    type: 'EXPENSE',
+    amount: '',
+    description: '',
+    person_name: '',
+    date: new Date().toISOString().split('T')[0]
+  });
 
   const API_BASE = 'http://localhost:8000/api';
 
@@ -52,13 +78,15 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchAll();
-      // Auto-refresh data every 30 seconds to sync with admin changes
       const interval = setInterval(() => {
         fetchAll();
+        if (personalAccess) {
+          fetchPersonalData();
+        }
       }, 30000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, personalAccess]);
 
   const fetchAll = async () => {
     await Promise.all([
@@ -68,6 +96,62 @@ function App() {
       fetchTransactions(),
       fetchReports()
     ]);
+  };
+
+  const fetchPersonalData = async () => {
+    await Promise.all([
+      fetchPeople(),
+      fetchPersonalTransactions(),
+      fetchPersonalDashboard()
+    ]);
+  };
+
+  const fetchPeople = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/people/`, { 
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPeople(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching people:', error);
+      setPeople([]);
+    }
+  };
+
+  const fetchPersonalTransactions = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/personal-transactions/`, { 
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPersonalTransactions(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching personal transactions:', error);
+      setPersonalTransactions([]);
+    }
+  };
+
+  const fetchPersonalDashboard = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/personal/dashboard/`, { 
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPersonalDashboard(data);
+      }
+    } catch (error) {
+      console.error('Error fetching personal dashboard:', error);
+      setPersonalDashboard({});
+    }
   };
 
   const fetchReports = async () => {
@@ -366,11 +450,6 @@ function App() {
     }
   };
 
-  const calculateProgress = () => {
-    if (dashboard.budget === 0 || dashboard.budget === null) return 0;
-    return Math.min((dashboard.spent / dashboard.budget) * 100, 100);
-  };
-
   const filteredTransactions = transactions.filter(transaction => {
     const typeMatch = transactionFilter.type === 'ALL' || transaction.type === transactionFilter.type;
     const monthMatch = !transactionFilter.month || 
@@ -400,6 +479,171 @@ function App() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     localStorage.setItem('activeTab', tab);
+    if (tab === 'personal') {
+      fetchPersonalData();
+    }
+  };
+
+  const addPerson = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_BASE}/people/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newPerson)
+      });
+      
+      if (response.ok) {
+        setNewPerson({ name: '', description: '', relationship: 'FRIEND', phone: '', email: '' });
+        setShowAddPerson(false);
+        await fetchPersonalData();
+        alert('Person added successfully!');
+      } else {
+        alert('Failed to add person.');
+      }
+    } catch (error) {
+      console.error('Error adding person:', error);
+      alert('Error adding person.');
+    }
+  };
+
+  const addPersonalTransaction = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_BASE}/personal-transactions/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          person: parseInt(newPersonalTransaction.person),
+          type: newPersonalTransaction.type,
+          amount: parseFloat(newPersonalTransaction.amount),
+          description: newPersonalTransaction.description,
+          date: newPersonalTransaction.date
+        })
+      });
+      
+      if (response.ok) {
+        setNewPersonalTransaction({ person: '', type: 'LENT', amount: '', description: '', date: new Date().toISOString().split('T')[0] });
+        setShowAddPersonalTransaction(false);
+        await fetchPersonalData();
+        alert('Transaction added successfully!');
+      } else {
+        alert('Failed to add transaction.');
+      }
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      alert('Error adding transaction.');
+    }
+  };
+
+  const handlePersonalAccess = async () => {
+    if (personalAccess) {
+      setActiveTab('personal');
+      localStorage.setItem('activeTab', 'personal');
+      return;
+    }
+    
+    const password = prompt('Enter personal diary password:');
+    if (!password) return;
+    
+    try {
+      const response = await fetch(`${API_BASE}/personal/verify-password/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setPersonalAccess(true);
+        setActiveTab('personal');
+        localStorage.setItem('activeTab', 'personal');
+        await fetchPersonalData();
+      } else {
+        alert('Invalid password!');
+      }
+    } catch (error) {
+      console.error('Password verification failed:', error);
+      alert('Error verifying password');
+    }
+  };
+
+  const addPersonalRecord = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_BASE}/personal/records/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          type: newPersonalRecord.type,
+          amount: parseFloat(newPersonalRecord.amount),
+          description: newPersonalRecord.description,
+          person_name: newPersonalRecord.person_name || null,
+          date: newPersonalRecord.date
+        })
+      });
+      
+      if (response.ok) {
+        setNewPersonalRecord({
+          type: 'EXPENSE',
+          amount: '',
+          description: '',
+          person_name: '',
+          date: new Date().toISOString().split('T')[0]
+        });
+        setShowAddPersonalRecord(false);
+        await fetchPersonalData();
+        alert('Personal record added successfully!');
+      } else {
+        alert('Failed to add record');
+      }
+    } catch (error) {
+      console.error('Error adding personal record:', error);
+      alert('Error adding record');
+    }
+  };
+
+  const deletePersonalRecord = async (recordId) => {
+    if (!window.confirm('Delete this record?')) return;
+    
+    try {
+      const response = await fetch(`${API_BASE}/personal/records/${recordId}/delete/`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        await fetchPersonalData();
+        alert('Record deleted successfully!');
+      } else {
+        alert('Failed to delete record');
+      }
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      alert('Error deleting record');
+    }
+  };
+
+  const toggleSettlement = async (recordId) => {
+    try {
+      const response = await fetch(`${API_BASE}/personal/records/${recordId}/toggle-settlement/`, {
+        method: 'PATCH',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        await fetchPersonalData();
+      } else {
+        alert('Failed to update settlement status');
+      }
+    } catch (error) {
+      console.error('Error toggling settlement:', error);
+      alert('Error updating settlement');
+    }
   };
 
   const downloadReport = async (monthStr) => {
@@ -415,7 +659,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         
-        // Generate CSV content
         let csvContent = `Monthly Report - ${data.month}\n`;
         csvContent += `Period: ${data.period}\n\n`;
         csvContent += `SUMMARY\n`;
@@ -437,7 +680,6 @@ function App() {
           csvContent += `${exp.date},₹${exp.amount.toFixed(2)},"${exp.description}",${exp.category}\n`;
         });
         
-        // Download CSV file
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -461,10 +703,7 @@ function App() {
   if (loading) {
     return (
       <div className="app">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading...</p>
-        </div>
+        <Loading />
       </div>
     );
   }
@@ -472,566 +711,94 @@ function App() {
   if (!isAuthenticated) {
     return (
       <div className="app">
-        <div className="login-container">
-          <div className="login-card">
-            <div className="login-header">
-              <h2>💰 BudgetPro</h2>
-              <p>Your smart financial companion</p>
-            </div>
-            <form className="login-form" onSubmit={login}>
-              <div className="input-group">
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={loginData.username}
-                  onChange={(e) => setLoginData({...loginData, username: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                  required
-                />
-              </div>
-              <button type="submit" className="login-btn">Sign In</button>
-            </form>
-            <div className="login-footer">
-              <p>Demo: muskan / muskan123</p>
-            </div>
-          </div>
-        </div>
+        <Login 
+          loginData={loginData}
+          setLoginData={setLoginData}
+          onLogin={login}
+        />
       </div>
     );
   }
 
   return (
     <div className="app">
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <h1>💰 BudgetPro</h1>
-        </div>
-        <nav className="sidebar-nav">
-          <button 
-            className={activeTab === 'dashboard' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => handleTabChange('dashboard')}
-          >
-            <span className="nav-icon">📊</span>
-            <span className="nav-text">Dashboard</span>
-          </button>
-          <button 
-            className={activeTab === 'expenses' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => handleTabChange('expenses')}
-          >
-            <span className="nav-icon">💸</span>
-            <span className="nav-text">Expenses</span>
-          </button>
-          <button 
-            className={activeTab === 'transactions' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => handleTabChange('transactions')}
-          >
-            <span className="nav-icon">📋</span>
-            <span className="nav-text">History</span>
-          </button>
-          <button 
-            className={activeTab === 'reports' ? 'nav-item active' : 'nav-item'} 
-            onClick={() => handleTabChange('reports')}
-          >
-            <span className="nav-icon">📊</span>
-            <span className="nav-text">Reports</span>
-          </button>
-        </nav>
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={logout}>Sign Out</button>
-        </div>
-      </div>
+      <Sidebar 
+        activeTab={activeTab}
+        handleTabChange={handleTabChange}
+        handlePersonalAccess={handlePersonalAccess}
+        logout={logout}
+      />
 
       <div className="main-wrapper">
         <header className="header">
           <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
         </header>
         <main className="main-content">
-        {activeTab === 'dashboard' && (
-          <div className="dashboard-tab">
-            <div className="dashboard-left">
-              {/* Hero Card */}
-              <div className="hero-card">
-                <div className="hero-content">
-                  <div className="hero-title">Total Balance</div>
-                  <div className="hero-balance">₹{dashboard.wallet_balance?.toFixed(2) || '0.00'}</div>
-                  <div className="hero-subtitle">Available for spending</div>
-                  <div className="hero-actions">
-                    <button className="hero-btn primary" onClick={() => setShowAddMoney(true)}>
-                      Add Funds
-                    </button>
-                    <button className="hero-btn" onClick={() => setShowSetBudget(true)}>
-                      Set Budget
-                    </button>
-                  </div>
-                </div>
-              </div>
+          {activeTab === 'dashboard' && (
+            <Dashboard 
+              dashboard={dashboard}
+              reports={reports}
+              setShowAddMoney={setShowAddMoney}
+              setShowSetBudget={setShowSetBudget}
+              setShowAddExpense={setShowAddExpense}
+              handleTabChange={handleTabChange}
+              downloadReport={downloadReport}
+            />
+          )}
 
-              {/* Stats Grid */}
-              <div className="stats-grid">
-                <div className="stat-card budget">
-                  <div className="stat-header">
-                    <div className="stat-title">Monthly Budget</div>
-                    <div className="stat-icon">🎯</div>
-                  </div>
-                  <div className="stat-value">₹{dashboard.budget?.toFixed(2) || '0.00'}</div>
-                  <div className="stat-change positive">+12% from last month</div>
-                </div>
-                
-                <div className="stat-card spent">
-                  <div className="stat-header">
-                    <div className="stat-title">Total Spent</div>
-                    <div className="stat-icon">💸</div>
-                  </div>
-                  <div className="stat-value">₹{dashboard.spent?.toFixed(2) || '0.00'}</div>
-                  <div className="stat-change negative">+8% from last month</div>
-                </div>
-                
-                <div className="stat-card remaining">
-                  <div className="stat-header">
-                    <div className="stat-title">Remaining</div>
-                    <div className="stat-icon">💰</div>
-                  </div>
-                  <div className="stat-value">₹{dashboard.remaining_budget?.toFixed(2) || '0.00'}</div>
-                  <div className="stat-change positive">{dashboard.budget > 0 ? 'Looking good!' : 'Set a budget'}</div>
-                </div>
-                
-                <div className="stat-card week">
-                  <div className="stat-header">
-                    <div className="stat-title">This Week</div>
-                    <div className="stat-icon">📅</div>
-                  </div>
-                  <div className="stat-value">₹{dashboard.week_spent?.toFixed(2) || '0.00'}</div>
-                  <div className="stat-change positive">-5% from last week</div>
-                </div>
-              </div>
-            </div>
+          {activeTab === 'expenses' && (
+            <Expenses 
+              filteredExpenses={filteredExpenses}
+              categories={categories}
+              expenseFilter={expenseFilter}
+              setExpenseFilter={setExpenseFilter}
+              showDescriptions={showDescriptions}
+              setShowDescriptions={setShowDescriptions}
+              setShowPasswordModal={setShowPasswordModal}
+              setShowAddExpense={setShowAddExpense}
+              deleteExpense={deleteExpense}
+            />
+          )}
 
-            <div className="dashboard-right">
+          {activeTab === 'transactions' && (
+            <Transactions 
+              filteredTransactions={filteredTransactions}
+              transactionFilter={transactionFilter}
+              setTransactionFilter={setTransactionFilter}
+              showDescriptions={showDescriptions}
+              setShowDescriptions={setShowDescriptions}
+              setShowPasswordModal={setShowPasswordModal}
+              deleteTransaction={deleteTransaction}
+            />
+          )}
 
-              {/* Budget Progress */}
-              <div className="progress-card">
-                <div className="progress-header">
-                  <div className="progress-title">Budget Progress</div>
-                  <div className="progress-percentage">{calculateProgress().toFixed(0)}%</div>
-                </div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${calculateProgress()}%` }}
-                  ></div>
-                </div>
-                <div className="progress-details">
-                  <span>Spent: ₹{dashboard.spent?.toFixed(2) || '0.00'}</span>
-                  <span>Budget: {dashboard.budget > 0 ? `₹${dashboard.budget?.toFixed(2)}` : 'Not set'}</span>
-                </div>
-              </div>
+          {activeTab === 'reports' && (
+            <Reports 
+              reports={reports}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              downloadReport={downloadReport}
+            />
+          )}
 
-
-              {/* Quick Actions */}
-              <div className="quick-actions">
-                <div className="quick-actions-title">Quick Actions</div>
-                <div className="actions-grid">
-                  <button className="action-btn" onClick={() => setShowAddExpense(true)}>
-                    <div className="action-icon">💸</div>
-                    <div className="action-text">Add Expense</div>
-                  </button>
-                  <button className="action-btn" onClick={() => setShowAddMoney(true)}>
-                    <div className="action-icon">💰</div>
-                    <div className="action-text">Add Funds</div>
-                  </button>
-                  <button className="action-btn" onClick={() => handleTabChange('transactions')}>
-                    <div className="action-icon">📋</div>
-                    <div className="action-text">View History</div>
-                  </button>
-                  <button className="action-btn" onClick={() => setShowSetBudget(true)}>
-                    <div className="action-icon">🎯</div>
-                    <div className="action-text">Set Budget</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Modern Top Categories */}
-              {dashboard.category_breakdown && dashboard.category_breakdown.length > 0 && (
-                <div className="modern-categories-card">
-                  <div className="modern-categories-header">
-                    <div className="modern-categories-title">Top Categories</div>
-                    <span className="modern-view-all-btn" onClick={() => handleTabChange('expenses')}>View All</span>
-                  </div>
-                  <div className="modern-category-row">
-                    {dashboard.category_breakdown.slice(0, 4).map((cat, index) => (
-                      <div key={index} className="modern-category-item">
-                        <div className="category-circle-container">
-                          <svg className="category-circle" width="80" height="80" viewBox="0 0 80 80">
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r="35"
-                              fill="none"
-                              stroke="#f3f4f6"
-                              strokeWidth="6"
-                            />
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r="35"
-                              fill="none"
-                              stroke={cat.category__color || '#6366f1'}
-                              strokeWidth="6"
-                              strokeDasharray={`${((cat.total / dashboard.spent) * 220) || 0} 220`}
-                              strokeLinecap="round"
-                              transform="rotate(-90 40 40)"
-                            />
-                          </svg>
-                          <div className="category-circle-content">
-                            <div className="category-icon-modern" style={{color: cat.category__color || '#6366f1'}}>
-                              {cat.category__icon || cat.category__name?.charAt(0)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="category-details-modern">
-                          <div className="category-name-modern">{cat.category__name}</div>
-                          <div className="category-amount-modern">₹{cat.total?.toFixed(2)}</div>
-                          <div className="category-percentage-modern">{((cat.total / dashboard.spent) * 100 || 0).toFixed(1)}%</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Dashboard Reports Section */}
-            <div className="dashboard-reports">
-              <div className="dashboard-reports-card">
-                <div className="reports-header">
-                  <div className="reports-title-section">
-                    <div className="reports-title">📊 Financial Reports</div>
-                    <div className="reports-subtitle">Monthly performance overview</div>
-                  </div>
-                  <span className="reports-view-all-btn" onClick={() => handleTabChange('reports')}>View All →</span>
-                </div>
-                <div className="reports-preview">
-                  {reports.length === 0 ? (
-                    <div className="reports-empty">
-                      <div className="empty-icon">📋</div>
-                      <p>No reports generated yet</p>
-                      <span className="empty-subtitle">Reports will appear here once you have transaction data</span>
-                    </div>
-                  ) : (
-                    <div className="reports-grid-preview">
-                      {reports.slice(0, 3).map((report, index) => (
-                        <div key={index} className="report-preview-card">
-                          <div className="report-card-header">
-                            <div className="report-month-info">
-                              <span className="report-month">{report.month_name}</span>
-                              <span className="report-year">{new Date(report.month + '-01').getFullYear()}</span>
-                            </div>
-                            <button 
-                              className="report-download-btn"
-                              onClick={() => downloadReport(report.month)}
-                              title="Download Report"
-                            >
-                              ⬇️
-                            </button>
-                          </div>
-                          <div className="report-summary">
-                            <div className="summary-item">
-                              <div className="summary-icon income-icon">💰</div>
-                              <div className="summary-details">
-                                <span className="summary-label">Income</span>
-                                <span className="summary-value income">₹{report.income.toFixed(2)}</span>
-                              </div>
-                            </div>
-                            <div className="summary-item">
-                              <div className="summary-icon expense-icon">💸</div>
-                              <div className="summary-details">
-                                <span className="summary-label">Expenses</span>
-                                <span className="summary-value expense">₹{report.expenses.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="report-net-savings">
-                            <span className="net-label">Net Savings</span>
-                            <span className={`net-value ${report.net_savings >= 0 ? 'positive' : 'negative'}`}>
-                              {report.net_savings >= 0 ? '+' : ''}₹{report.net_savings.toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'expenses' && (
-          <div className="expenses-tab">
-            <div className="tab-header">
-              <h3>Recent Expenses</h3>
-              <div className="header-actions">
-                {showDescriptions && (
-                  <button className="hide-desc-btn" onClick={() => setShowDescriptions(false)}>
-                    🙈 Hide Descriptions
-                  </button>
-                )}
-                <button className="add-btn" onClick={() => setShowAddExpense(true)}>+ Add Expense</button>
-              </div>
-            </div>
-            <div className="filters">
-              <select 
-                value={expenseFilter.category} 
-                onChange={(e) => setExpenseFilter({...expenseFilter, category: e.target.value})}
-                className="filter-select"
-              >
-                <option value="ALL">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-                ))}
-              </select>
-              <input
-                type="month"
-                value={expenseFilter.month}
-                onChange={(e) => setExpenseFilter({...expenseFilter, month: e.target.value})}
-                className="filter-month"
-                placeholder="Filter by month"
-              />
-              <button 
-                className="clear-filters-btn" 
-                onClick={() => setExpenseFilter({ category: 'ALL', month: '' })}
-              >
-                Clear
-              </button>
-            </div>
-            <div className="expenses-list">
-              {filteredExpenses.length === 0 ? (
-                <div className="empty-state">
-                  <p>No expenses found. {expenses.length === 0 ? 'Add your first expense!' : 'Try adjusting filters.'}</p>
-                </div>
-              ) : (
-                filteredExpenses.map(expense => (
-                  <div key={expense.id} className="expense-item">
-                    <div className="expense-icon" style={{backgroundColor: expense.category_color || '#6366f1'}}>
-                      {expense.category_icon || expense.category_name?.charAt(0)}
-                    </div>
-                    <div className="expense-info">
-                      <span className="description">{showDescriptions ? expense.description : 'Expense'}</span>
-                      <span className="category">{expense.category_name}</span>
-                      <span className="date">{new Date(expense.date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="expense-actions">
-                      <span className="amount">-₹{expense.amount}</span>
-                      {!showDescriptions && (
-                        <button 
-                          className="show-desc-btn" 
-                          onClick={() => setShowPasswordModal(true)}
-                          title="Show Description"
-                        >
-                          👁️
-                        </button>
-                      )}
-                      <button className="delete-btn" onClick={() => deleteExpense(expense.id)}>🗑️</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'transactions' && (
-          <div className="transactions-tab">
-            <div className="tab-header">
-              <h3>Transaction History</h3>
-              {showDescriptions && (
-                <button className="hide-desc-btn" onClick={() => setShowDescriptions(false)}>
-                  🙈 Hide Descriptions
-                </button>
-              )}
-            </div>
-            <div className="filters">
-              <select 
-                value={transactionFilter.type} 
-                onChange={(e) => setTransactionFilter({...transactionFilter, type: e.target.value})}
-                className="filter-select"
-              >
-                <option value="ALL">All Types</option>
-                <option value="ADD">💰 Income</option>
-                <option value="EXPENSE">💸 Expenses</option>
-              </select>
-              <input
-                type="month"
-                value={transactionFilter.month}
-                onChange={(e) => setTransactionFilter({...transactionFilter, month: e.target.value})}
-                className="filter-month"
-                placeholder="Filter by month"
-              />
-              <button 
-                className="clear-filters-btn" 
-                onClick={() => setTransactionFilter({ type: 'ALL', month: '' })}
-              >
-                Clear
-              </button>
-            </div>
-            <div className="transactions-list">
-              {filteredTransactions.length === 0 ? (
-                <div className="empty-state">
-                  <p>No transactions found. {transactions.length === 0 ? 'No transactions yet.' : 'Try adjusting filters.'}</p>
-                </div>
-              ) : (
-                filteredTransactions.map(transaction => (
-                  <div key={transaction.id} className={`transaction-item ${transaction.type.toLowerCase()}`}>
-                    <div className="transaction-icon">
-                      {transaction.type === 'ADD' ? '💰' : '💸'}
-                    </div>
-                    <div className="transaction-info">
-                      <span className="description">
-                        {showDescriptions ? transaction.description : 'Transaction'}
-                      </span>
-                      <span className="date">{new Date(transaction.date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="transaction-actions">
-                      <span className="amount">
-                        {transaction.type === 'ADD' ? '+' : '-'}₹{transaction.amount}
-                      </span>
-                      {!showDescriptions && (
-                        <button 
-                          className="show-desc-btn" 
-                          onClick={() => setShowPasswordModal(true)}
-                          title="Show Description"
-                        >
-                          👁️
-                        </button>
-                      )}
-                      <button className="delete-btn" onClick={() => deleteTransaction(transaction.id)}>🗑️</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'reports' && (
-          <div className="reports-tab">
-            <div className="tab-header">
-              <div className="tab-title-section">
-                <h3>📊 Financial Reports</h3>
-                <p className="tab-subtitle">Comprehensive monthly financial analysis</p>
-              </div>
-              <div className="tab-controls">
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="month-selector"
-                />
-              </div>
-            </div>
-            <div className="reports-grid">
-              {reports.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📊</div>
-                  <h4>No Reports Available</h4>
-                  <p>Start tracking your expenses to generate monthly reports</p>
-                </div>
-              ) : (
-                reports.slice(0, 6).map((report, index) => (
-                  <div key={index} className="report-card-detailed">
-                    <div className="report-card-header">
-                      <div className="report-title-section">
-                        <h4>{report.month_name}</h4>
-                        <span className="report-period">{new Date(report.month + '-01').getFullYear()}</span>
-                      </div>
-                      <div className="report-actions">
-                        <button 
-                          className="download-btn"
-                          onClick={() => downloadReport(report.month)}
-                          title="Download Report"
-                        >
-                          ⬇️ Download
-                        </button>
-                      </div>
-                    </div>
-                    <div className="report-metrics">
-                      <div className="metric-item">
-                        <div className="metric-icon income">💰</div>
-                        <div className="metric-info">
-                          <span className="metric-label">Total Income</span>
-                          <span className="metric-value income">₹{report.income.toFixed(2)}</span>
-                        </div>
-                      </div>
-                      <div className="metric-item">
-                        <div className="metric-icon expense">💸</div>
-                        <div className="metric-info">
-                          <span className="metric-label">Total Expenses</span>
-                          <span className="metric-value expense">₹{report.expenses.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="report-net-result">
-                      <span className="net-label">Net Savings</span>
-                      <span className={`net-amount ${report.net_savings >= 0 ? 'positive' : 'negative'}`}>
-                        {report.net_savings >= 0 ? '+' : ''}₹{report.net_savings.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="report-stats">
-                        <div className="stat-row">
-                          <span className="stat-label">💰 Income:</span>
-                          <span className="stat-value income">₹{report.income.toFixed(2)}</span>
-                        </div>
-                        <div className="stat-row">
-                          <span className="stat-label">💸 Expenses:</span>
-                          <span className="stat-value expense">₹{report.expenses.toFixed(2)}</span>
-                        </div>
-                        <div className="stat-row">
-                          <span className="stat-label">🎯 Budget:</span>
-                          <span className="stat-value">₹{report.budget.toFixed(2)}</span>
-                        </div>
-                        <div className="stat-row">
-                          <span className="stat-label">📊 Transactions:</span>
-                          <span className="stat-value">{report.transactions_count}</span>
-                        </div>
-                      </div>
-                      <div className="report-breakdown">
-                        <div className="breakdown-item">
-                          <span>Income Transactions: {report.income_transactions}</span>
-                        </div>
-                        <div className="breakdown-item">
-                          <span>Expense Transactions: {report.expense_transactions}</span>
-                        </div>
-                      </div>
-                    {report.budget > 0 && (
-                      <div className="budget-progress">
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill" 
-                            style={{ 
-                              width: `${Math.min((report.expenses / report.budget) * 100, 100)}%`,
-                              backgroundColor: report.expenses > report.budget ? '#ef4444' : '#10b981'
-                            }}
-                          ></div>
-                        </div>
-                        <span className="progress-text">
-                          {((report.expenses / report.budget) * 100).toFixed(1)}% of budget used
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+          {activeTab === 'personal' && (
+            <Personal 
+              personalAccess={personalAccess}
+              personalSummary={personalSummary}
+              personalRecords={personalRecords}
+              people={people}
+              personalTransactions={personalTransactions}
+              personalDashboard={personalDashboard}
+              setShowAddPersonalRecord={setShowAddPersonalRecord}
+              setShowAddPerson={setShowAddPerson}
+              setShowAddPersonalTransaction={setShowAddPersonalTransaction}
+              setSelectedPerson={setSelectedPerson}
+              setNewPersonalTransaction={setNewPersonalTransaction}
+              newPersonalTransaction={newPersonalTransaction}
+              deletePersonalRecord={deletePersonalRecord}
+              toggleSettlement={toggleSettlement}
+            />
+          )}
         </main>
       </div>
 
@@ -1039,134 +806,45 @@ function App() {
         +
       </button>
 
-      {/* Modals */}
-      {showAddExpense && (
-        <div className="modal-overlay" onClick={() => setShowAddExpense(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <form className="modal-form" onSubmit={addExpense}>
-              <h3>Add New Expense</h3>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="Amount (₹)"
-                value={newExpense.amount}
-                onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                value={newExpense.description}
-                onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
-                required
-              />
-              <select
-                value={newExpense.category}
-                onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
-                required
-              >
-                <option value="">Select Category</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-                ))}
-              </select>
-              <input
-                type="date"
-                value={newExpense.date}
-                onChange={(e) => setNewExpense({...newExpense, date: e.target.value})}
-                required
-              />
-              <div className="form-actions">
-                <button type="submit">Add Expense</button>
-                <button type="button" onClick={() => setShowAddExpense(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showPasswordModal && (
-        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <form className="modal-form" onSubmit={handlePasswordSubmit}>
-              <h3>🔒 Enter Password</h3>
-              <p>Enter password to view transaction descriptions</p>
-              <input
-                type="password"
-                placeholder="Password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                required
-                autoFocus
-              />
-              <div className="form-actions">
-                <button type="submit">Unlock</button>
-                <button type="button" onClick={() => setShowPasswordModal(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showAddMoney && (
-        <div className="modal-overlay" onClick={() => setShowAddMoney(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <form className="modal-form" onSubmit={addMoney}>
-              <h3>Add Funds</h3>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="Amount (₹)"
-                value={newMoney.amount}
-                onChange={(e) => setNewMoney({...newMoney, amount: e.target.value})}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                value={newMoney.description}
-                onChange={(e) => setNewMoney({...newMoney, description: e.target.value})}
-                required
-              />
-              <div className="form-actions">
-                <button type="submit">Add Funds</button>
-                <button type="button" onClick={() => setShowAddMoney(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showSetBudget && (
-        <div className="modal-overlay" onClick={() => setShowSetBudget(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <form className="modal-form" onSubmit={setBudget}>
-              <h3>Set Monthly Budget</h3>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="Budget Amount (₹)"
-                value={newBudget.amount}
-                onChange={(e) => setNewBudget({...newBudget, amount: e.target.value})}
-                required
-              />
-              <input
-                type="month"
-                value={newBudget.month}
-                onChange={(e) => setNewBudget({...newBudget, month: e.target.value})}
-                required
-              />
-              <div className="form-actions">
-                <button type="submit">Set Budget</button>
-                <button type="button" onClick={() => setShowSetBudget(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modals
+        showAddExpense={showAddExpense}
+        setShowAddExpense={setShowAddExpense}
+        newExpense={newExpense}
+        setNewExpense={setNewExpense}
+        categories={categories}
+        addExpense={addExpense}
+        showPasswordModal={showPasswordModal}
+        setShowPasswordModal={setShowPasswordModal}
+        passwordInput={passwordInput}
+        setPasswordInput={setPasswordInput}
+        handlePasswordSubmit={handlePasswordSubmit}
+        showAddPerson={showAddPerson}
+        setShowAddPerson={setShowAddPerson}
+        newPerson={newPerson}
+        setNewPerson={setNewPerson}
+        addPerson={addPerson}
+        showAddPersonalTransaction={showAddPersonalTransaction}
+        setShowAddPersonalTransaction={setShowAddPersonalTransaction}
+        newPersonalTransaction={newPersonalTransaction}
+        setNewPersonalTransaction={setNewPersonalTransaction}
+        people={people}
+        addPersonalTransaction={addPersonalTransaction}
+        showAddMoney={showAddMoney}
+        setShowAddMoney={setShowAddMoney}
+        newMoney={newMoney}
+        setNewMoney={setNewMoney}
+        addMoney={addMoney}
+        showSetBudget={showSetBudget}
+        setShowSetBudget={setShowSetBudget}
+        newBudget={newBudget}
+        setNewBudget={setNewBudget}
+        setBudget={setBudget}
+        showAddPersonalRecord={showAddPersonalRecord}
+        setShowAddPersonalRecord={setShowAddPersonalRecord}
+        newPersonalRecord={newPersonalRecord}
+        setNewPersonalRecord={setNewPersonalRecord}
+        addPersonalRecord={addPersonalRecord}
+      />
     </div>
   );
 }
