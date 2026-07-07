@@ -125,6 +125,10 @@ class PersonalRecord(models.Model):
     RECORD_TYPES = [
         ('EXPENSE', 'Personal Expense'),
         ('LOAN', 'Personal Loan'),
+        ('LENT', 'Money Lent'),
+        ('BORROWED', 'Money Borrowed'),
+        ('RECEIVED', 'Money Received Back'),
+        ('PAID_BACK', 'Money Paid Back'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
