@@ -80,6 +80,14 @@ const Modals = ({
                 onChange={(e) => setNewExpense({...newExpense, date: e.target.value})}
                 required
               />
+              <select
+                value={newExpense.payment_mode}
+                onChange={(e) => setNewExpense({...newExpense, payment_mode: e.target.value})}
+                required
+              >
+                <option value="CASH">💵 Cash</option>
+                <option value="ONLINE">💳 Online</option>
+              </select>
               <div className="form-actions">
                 <button type="submit">Add Expense</button>
                 <button type="button" onClick={() => setShowAddExpense(false)}>Cancel</button>

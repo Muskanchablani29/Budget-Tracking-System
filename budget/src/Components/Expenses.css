@@ -4,6 +4,48 @@
   gap: 24px;
 }
 
+.expenses-summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 16px;
+  padding: 24px 32px;
+  color: white;
+}
+
+.expenses-summary-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.expenses-summary-label {
+  font-size: 0.9rem;
+  opacity: 0.75;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.expenses-summary-amount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.expenses-summary-right {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 10px 20px;
+}
+
+.expenses-summary-count {
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
 .tab-header {
   display: flex;
   justify-content: space-between;
@@ -259,4 +301,84 @@
     width: 100%;
     justify-content: space-between;
   }
+}
+
+.payment-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 2px;
+  width: fit-content;
+}
+
+.payment-badge.cash {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
+}
+
+.payment-badge.online {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.expenses-summary-breakdown {
+  display: flex;
+  gap: 12px;
+}
+
+.summary-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  border-radius: 10px;
+}
+
+.cash-summary {
+  background: rgba(253, 224, 71, 0.15);
+  border: 1px solid rgba(253, 224, 71, 0.4);
+}
+
+.online-summary {
+  background: rgba(147, 197, 253, 0.15);
+  border: 1px solid rgba(147, 197, 253, 0.4);
+}
+
+.count-summary {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mode-label {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.mode-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .expenses-summary-breakdown {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.payment-badge.clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.payment-badge.clickable:hover {
+  opacity: 0.75;
+  transform: scale(1.05);
 }

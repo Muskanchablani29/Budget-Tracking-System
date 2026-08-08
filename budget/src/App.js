@@ -31,7 +31,8 @@ function App() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [newExpense, setNewExpense] = useState({ 
     amount: '', description: '', category: '', 
-    date: new Date().toISOString().split('T')[0] 
+    date: new Date().toISOString().split('T')[0],
+    payment_mode: 'CASH'
   });
   const [newMoney, setNewMoney] = useState({ amount: '', description: 'Added money' });
   const [newBudget, setNewBudget] = useState({ 
@@ -321,12 +322,13 @@ function App() {
           amount: parseFloat(newExpense.amount),
           description: newExpense.description,
           category: parseInt(newExpense.category),
-          date: newExpense.date
+          date: newExpense.date,
+          payment_mode: newExpense.payment_mode
         })
       });
       
       if (response.ok) {
-        setNewExpense({ amount: '', description: '', category: '', date: new Date().toISOString().split('T')[0] });
+        setNewExpense({ amount: '', description: '', category: '', date: new Date().toISOString().split('T')[0], payment_mode: 'CASH' });
         setShowAddExpense(false);
         await fetchAll();
         alert('Expense added successfully!');
@@ -398,6 +400,24 @@ function App() {
     }
   };
 
+  const updateExpensePaymentMode = async (expenseId, newMode) => {
+    try {
+      const response = await fetch(`${API_BASE}/expenses/${expenseId}/update-payment-mode/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ payment_mode: newMode })
+      });
+      if (response.ok) {
+        await fetchExpenses();
+      } else {
+        alert('Failed to update payment mode.');
+      }
+    } catch (error) {
+      console.error('Error updating payment mode:', error);
+    }
+  };
+
   const deleteExpense = async (expenseId) => {
     if (!window.confirm('Are you sure you want to delete this expense?')) {
       return;
@@ -461,7 +481,9 @@ function App() {
     const categoryMatch = expenseFilter.category === 'ALL' || expense.category === parseInt(expenseFilter.category);
     const monthMatch = !expenseFilter.month || 
       new Date(expense.date).toISOString().slice(0, 7) === expenseFilter.month;
-    return categoryMatch && monthMatch;
+    const paymentMatch = !expenseFilter.payment_mode || expenseFilter.payment_mode === 'ALL' || 
+      expense.payment_mode === expenseFilter.payment_mode;
+    return categoryMatch && monthMatch && paymentMatch;
   });
 
   const handlePasswordSubmit = (e) => {
@@ -757,6 +779,7 @@ function App() {
               setShowPasswordModal={setShowPasswordModal}
               setShowAddExpense={setShowAddExpense}
               deleteExpense={deleteExpense}
+              updateExpensePaymentMode={updateExpensePaymentMode}
             />
           )}
 

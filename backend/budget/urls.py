@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/transactions/', views.transactions, name='transactions'),
     path('api/monthly-analytics/', views.monthly_analytics, name='monthly_analytics'),
     path('api/expenses/<int:expense_id>/delete/', views.delete_expense, name='delete_expense'),
+    path('api/expenses/<int:expense_id>/update-payment-mode/', views.update_payment_mode, name='update_payment_mode'),
     path('api/transactions/<int:transaction_id>/delete/', views.delete_transaction, name='delete_transaction'),
     path('api/spending-insights/', views.spending_insights, name='spending_insights'),
     path('api/monthly-reports/', views.monthly_reports, name='monthly_reports'),

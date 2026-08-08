@@ -33,11 +33,17 @@ class MonthlyBudget(models.Model):
         return f"{self.user.username} - {self.month.strftime('%B %Y')} - ${self.amount}"
 
 class Expense(models.Model):
+    PAYMENT_MODES = [
+        ('CASH', 'Cash'),
+        ('ONLINE', 'Online'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.CharField(max_length=200)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     date = models.DateField(default=timezone.now)
+    payment_mode = models.CharField(max_length=10, choices=PAYMENT_MODES, default='CASH')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

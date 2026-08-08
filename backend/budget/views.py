@@ -236,7 +236,7 @@ def verify_personal_password(request):
     """Verify password for personal diary access"""
     try:
         password = request.data.get('password')
-        if password == 'Muskan2908':
+        if password == 'muskan123':
             return Response({'success': True})
         return Response({'success': False}, status=401)
     except Exception as e:
@@ -302,6 +302,25 @@ def monthly_analytics(request):
         })
     
     return Response(months_data)
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def update_payment_mode(request, expense_id):
+    """Update payment mode (CASH/ONLINE) for an expense"""
+    admin_user = User.objects.filter(username='muskan').first()
+    if not admin_user:
+        return Response({'error': 'User not found'}, status=404)
+    try:
+        expense = Expense.objects.get(id=expense_id, user=admin_user)
+        mode = request.data.get('payment_mode')
+        if mode not in ['CASH', 'ONLINE']:
+            return Response({'error': 'Invalid payment mode'}, status=400)
+        expense.payment_mode = mode
+        expense.save()
+        return Response({'success': True, 'payment_mode': expense.payment_mode})
+    except Expense.DoesNotExist:
+        return Response({'error': 'Expense not found'}, status=404)
 
 @api_view(['DELETE'])
 @permission_classes([AllowAny])
