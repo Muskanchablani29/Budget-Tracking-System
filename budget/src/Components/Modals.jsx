@@ -145,7 +145,7 @@ const Modals = ({
                 onChange={(e) => setNewPerson({...newPerson, relationship: e.target.value})}
                 required
               >
-                <option value="FAMILY">👨👩👧👦 Family</option>
+                <option value="FAMILY">👨‍👩‍👧‍👦 Family</option>
                 <option value="FRIEND">👫 Friend</option>
                 <option value="COLLEAGUE">👥 Colleague</option>
                 <option value="BUSINESS">💼 Business</option>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import Login from './Components/Login';
-import Loading from './Components/Loading';
-import Sidebar from './Components/Sidebar';
-import Dashboard from './Components/Dashboard';
-import Expenses from './Components/Expenses';
-import Transactions from './Components/Transactions';
-import Reports from './Components/Reports';
-import Personal from './Components/Personal';
-import Modals from './Components/Modals';
+import Login from './Components/Login.jsx';
+import Loading from './Components/Loading.jsx';
+import Sidebar from './Components/Sidebar.jsx';
+import Dashboard from './Components/Dashboard.jsx';
+import Expenses from './Components/Expenses.jsx';
+import Transactions from './Components/Transactions.jsx';
+import Reports from './Components/Reports.jsx';
+import Personal from './Components/Personal.jsx';
+import Modals from './Components/Modals.jsx';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
